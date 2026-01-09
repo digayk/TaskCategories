@@ -16,18 +16,24 @@ app.get('/', (req, res) => {
 });
 
 app.get('/items', async (req, res) => {
-    try {
-        const [rows] = await db.query("SELECT * FROM items");
-        res.json(rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    const sortField = req.query.sort === 'prijs' ? 'prijs' : 'id';
+    const [rows] = await db.query(`SELECT * FROM items ORDER BY ${sortField} ASC`);
+    res.json(rows);
+});
+app.get('/items/search', async (req, res) => {
+    const searchTerm = req.query.q;
+    const [rows] = await db.query("SELECT * FROM items WHERE naam LIKE ?", [`%${searchTerm}%`]);
+    res.json(rows);
 });
 
 app.post('/items', async (req, res) => {
     const { naam, prijs } = req.body;
-    try {
-        const [result] = await db.query("INSERT INTO items (naam, prijs) VALUES (?, ?)", [naam, prijs]);
-        res.status(201).json({ message: "Bloem toegevoegd", id: result.insertId });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    if (!naam || !prijs) return res.status(400).json({ error: "Naam en prijs verplicht" });
+    if (typeof prijs !== 'number') return res.status(400).json({ error: "Prijs moet een getal zijn" });
+    if (/\d/.test(naam)) return res.status(400).json({ error: "Naam mag geen cijfers bevatten" });
+
+    const [result] = await db.query("INSERT INTO items (naam, prijs) VALUES (?, ?)", [naam, prijs]);
+    res.status(201).json({ message: "Bloem toegevoegd", id: result.insertId });
 });
 
 app.delete('/items/:id', async (req, res) => {
